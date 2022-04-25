@@ -1,0 +1,48 @@
+#required variable
+#server_hostname
+#environment
+---
+- hosts: all
+  gather_facts: yes
+  become: yes
+
+  tasks:
+
+  - name: Set server hostname
+    hostname:
+      name: "{{ server_hostname }}"
+      use: systemd
+
+  - name: Enable amazon-linux-extras packages
+    shell: "amazon-linux-extras enable {{ item }}"
+    loop:
+      - "nginx1"
+  
+  - name: Install additional packages required
+    yum:
+      name:
+        - nginx
+  
+  - name: Ensure nginx is running and starts on boot
+    service:
+      name: nginx
+      state: started
+      enabled: yes
+
+  - name: Copy template to nginx docroot
+    copy:
+      src: ./templates/index.html
+      dest: /usr/share/nginx/html/index.html
+      owner: nginx
+      group: nginx
+      force: yes
+      mode: "0644"
+
+  - name: Replace variables in template file
+    replace: 
+      path: /usr/share/nginx/html/index.html
+      regexp: "{{ item.original }}"
+      replace: "{{ item.replacement }}"
+    loop: 
+      - { 'original': 'HOSTNAME', 'replacement': '{{ ansible_hostname }}'}
+      - { 'original': 'ENVIRONMENT', 'replacement': '{{ bg_environment }}'}
